@@ -44,7 +44,7 @@ def solve_exam_scheduling(ordering_strategy, course_ids, course_enrollments, stu
         elif ordering_strategy == "DSATUR":
             curr = max(unassigned, key=lambda c: (saturation_degrees[c], degrees[c], enrollments[c]))
         elif ordering_strategy == "RANDOM":
-            # [SỬA LỖI Ở ĐÂY]: Chọn ngẫu nhiên an toàn trực tiếp từ tập hợp unassigned
+            # Chọn ngẫu nhiên an toàn trực tiếp từ tập hợp unassigned
             curr = random.choice(list(unassigned))
 
         num_students_exam = enrollments[curr]
@@ -142,3 +142,4 @@ def solve_exam_scheduling(ordering_strategy, course_ids, course_enrollments, stu
         "Lịch thi": assigned_slots,
         "Room Allocation": assigned_rooms_per_course
     }
+

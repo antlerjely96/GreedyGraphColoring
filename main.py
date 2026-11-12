@@ -36,10 +36,7 @@ def export_concrete_schedule(assigned_slots, assigned_rooms, course_enrollments,
     file_name = f"Lich_Thi_{strategy_name}.csv"
     df_schedule.to_csv(file_name, index=False, encoding="utf-8-sig")
 
-    print(f"\n[+] Đã xuất lịch thi chi tiết ra file: {file_name}")
-    print("\n=== MỘT PHẦN LỊCH THI CHI TIẾT ===")
-    print(df_schedule.head(15).to_string(index=False))
-    print(f"... (Xem đầy đủ danh sách {len(df_schedule)} môn thi trong file CSV) ...\n")
+    print(f"  -> Đã xuất lịch thi chi tiết ra file: {file_name}")
 
 
 def main():
@@ -54,20 +51,18 @@ def main():
         course_ids, course_enrollments, student_registrations, conflict_matrix, num_students, rooms_capacity = load_data_from_dataset(
             dataset_path)
         print(
-            f"[+] Tải thành công: {num_students} sinh viên, {len(course_ids)} môn thi và {len(rooms_capacity)} phòng học.")
+            f"[+] Tải thành công: {num_students} sinh viên, {len(course_ids)} môn thi và {len(rooms_capacity)} phòng học.\n")
     except Exception as e:
         print(f"[!] Lỗi khi đọc dữ liệu: {e}")
         return
 
     strategies = ["LDF", "DSATUR", "LEF", "RANDOM"]
     results = []
-    best_schedule = None
-    best_rooms = None
-    best_strategy = ""
 
-    print("[*] Đang chạy thuật toán RÀNG BUỘC KÉP (Phòng thi & Xung đột Ca thi)...\n")
+    print("[*] Đang chạy thuật toán Xếp lịch & Phân phòng (Sẽ xuất 4 file CSV)...")
 
     for s in strategies:
+        print(f"\n[*] Đang chạy chiến lược: {s}...")
         res = solve_exam_scheduling(s, course_ids, course_enrollments, student_registrations, conflict_matrix,
                                     num_students, rooms_capacity)
 
@@ -80,18 +75,14 @@ def main():
             "P trung bình/SV": res["P trung bình/SV"]
         })
 
-        if s == "DSATUR":
-            best_schedule = res["Lịch thi"]
-            best_rooms = res["Room Allocation"]
-            best_strategy = s
+        # Gọi hàm xuất file ngay trong vòng lặp để tạo file CSV cho MỖI chiến lược
+        export_concrete_schedule(res["Lịch thi"], res["Room Allocation"], course_enrollments, s)
 
     df_results = pd.DataFrame(results)
-    print("=== BẢNG ĐÁNH GIÁ CÁC CHIẾN LƯỢC ===")
+    print("\n=== BẢNG ĐÁNH GIÁ CÁC CHIẾN LƯỢC ===")
     print(df_results.to_string(index=False))
-
-    if best_schedule:
-        export_concrete_schedule(best_schedule, best_rooms, course_enrollments, best_strategy)
 
 
 if __name__ == "__main__":
     main()
+

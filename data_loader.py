@@ -68,3 +68,4 @@ def load_data_from_dataset(dataset_path="dataset.zip"):
                 conflict_matrix.loc[c2, c1] += 1
 
     return course_ids, course_enrollments, student_registrations, conflict_matrix, num_students, rooms_capacity
+
