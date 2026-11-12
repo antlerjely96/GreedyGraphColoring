@@ -1,10 +1,12 @@
 import pandas as pd
 import os
+from collections import defaultdict
 from data_loader import load_data_from_dataset
 from scheduler import solve_exam_scheduling
 
 
-def export_concrete_schedule(assigned_slots, assigned_rooms, course_enrollments, strategy_name, timeslots_per_day=3):
+def export_concrete_schedule(assigned_slots, assigned_rooms, course_enrollments, strategy_name, student_registrations,
+                             timeslots_per_day=3):
     schedule_data = []
     ca_thi_labels = ["Sáng", "Chiều", "Tối"]
 
@@ -33,10 +35,45 @@ def export_concrete_schedule(assigned_slots, assigned_rooms, course_enrollments,
     df_schedule = df_schedule.sort_values(by=["Slot Toán Học", "Mã Môn Thi"])
     df_schedule = df_schedule.drop(columns=["Slot Toán Học"])
 
-    file_name = f"Lich_Thi_{strategy_name}.csv"
-    df_schedule.to_csv(file_name, index=False, encoding="utf-8-sig")
+    # Định dạng .xlsx vì định dạng CSV không hỗ trợ tính năng tạo nhiều Sheet
+    file_name = f"Lich_Thi_{strategy_name}.xlsx"
 
-    print(f"  -> Đã xuất lịch thi chi tiết ra file: {file_name}")
+    # Nghịch đảo từ student_registrations -> danh sách SV theo môn
+    course_students = defaultdict(list)
+    for s_id, courses in student_registrations.items():
+        for c in courses:
+            course_students[c].append(s_id)
+
+    # Mở ExcelWriter để ghi nhiều sheet
+    with pd.ExcelWriter(file_name, engine='openpyxl') as writer:
+        # 1. Ghi lịch tổng quát
+        df_schedule.to_excel(writer, sheet_name="Lịch Tổng Quát", index=False)
+
+        # 2. Ghi danh sách sinh viên cho TỪNG MÔN THI
+        for course in df_schedule["Mã Môn Thi"].tolist():
+            # Xử lý tên sheet hợp lệ (tối đa 31 ký tự, không chứa ký tự đặc biệt)
+            sheet_name = str(course)[:31].translate(str.maketrans("", "", ":/\\?*[]"))
+
+            students = course_students.get(course, [])
+
+            # Lấy thông tin phòng, ca thi của môn này
+            room_info = df_schedule[df_schedule["Mã Môn Thi"] == course].iloc[0]
+
+            course_data = []
+            for s_id in sorted(students):
+                course_data.append({
+                    "Mã Sinh Viên": s_id,
+                    "Mã Môn Thi": course,
+                    "Ngày Thi": room_info["Ngày Thi"],
+                    "Ca Thi": room_info["Ca Thi"],
+                    "Phòng Thi": room_info["Phòng Thi"]
+                })
+
+            if course_data:
+                df_course = pd.DataFrame(course_data)
+                df_course.to_excel(writer, sheet_name=sheet_name, index=False)
+
+    print(f"  -> Đã xuất lịch thi và danh sách SV ra file: {file_name}")
 
 
 def main():
@@ -59,7 +96,7 @@ def main():
     strategies = ["LDF", "DSATUR", "LEF", "RANDOM"]
     results = []
 
-    print("[*] Đang chạy thuật toán Xếp lịch & Phân phòng (Sẽ xuất 4 file CSV)...")
+    print("[*] Đang chạy thuật toán Xếp lịch & Phân phòng (Sẽ xuất 4 file EXCEL)...")
 
     for s in strategies:
         print(f"\n[*] Đang chạy chiến lược: {s}...")
@@ -75,8 +112,8 @@ def main():
             "P trung bình/SV": res["P trung bình/SV"]
         })
 
-        # Gọi hàm xuất file ngay trong vòng lặp để tạo file CSV cho MỖI chiến lược
-        export_concrete_schedule(res["Lịch thi"], res["Room Allocation"], course_enrollments, s)
+        # Truyền thêm student_registrations vào hàm xuất file
+        export_concrete_schedule(res["Lịch thi"], res["Room Allocation"], course_enrollments, s, student_registrations)
 
     df_results = pd.DataFrame(results)
     print("\n=== BẢNG ĐÁNH GIÁ CÁC CHIẾN LƯỢC ===")
